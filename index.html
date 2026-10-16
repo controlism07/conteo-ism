@@ -232,6 +232,16 @@ h3{margin:0;font-size:15px}
     <div id="ajSesion" hidden style="display:flex;flex-direction:column;gap:8px">
       <span class="label">Sesión</span>
       <p class="muted" style="margin:0" id="ajSesionInfo"></p>
+      <details id="cambioClave" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+        <summary style="cursor:pointer;font-weight:600">Cambiar mi clave</summary>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <input type="password" id="inClaveAct" placeholder="Clave actual" autocomplete="current-password" style="width:100%;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 12px;min-height:46px">
+          <input type="password" id="inClaveNueva" placeholder="Clave nueva (mínimo 6 caracteres)" autocomplete="new-password" style="width:100%;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 12px;min-height:46px">
+          <input type="password" id="inClaveNueva2" placeholder="Repita la clave nueva" autocomplete="new-password" style="width:100%;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 12px;min-height:46px">
+          <p class="note bad" id="claveErr" hidden style="margin:0"></p>
+          <button type="button" class="btn primary" id="btnCambiarClave">Guardar clave nueva</button>
+        </div>
+      </details>
       <button type="button" class="btn" id="btnSalir">Cerrar sesión</button>
     </div>
     <span class="label">Lista de productos</span>
@@ -844,6 +854,30 @@ async function ingresar(){
 }
 $("btnLogin").addEventListener("click",ingresar);
 $("inClave").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); ingresar(); }});
+$("btnCambiarClave").addEventListener("click",async()=>{
+  const act=$("inClaveAct").value, n1=$("inClaveNueva").value, n2=$("inClaveNueva2").value, err=$("claveErr");
+  const mal=t=>{ err.hidden=false; err.textContent=t; };
+  err.hidden=true;
+  if(!act||!n1) return mal("Complete la clave actual y la nueva.");
+  if(n1.length<6) return mal("La clave nueva debe tener al menos 6 caracteres.");
+  if(n1!==n2) return mal("Las dos claves nuevas no coinciden.");
+  if(!navigator.onLine) return mal("Necesita internet para cambiar la clave.");
+  $("btnCambiarClave").disabled=true;
+  try{
+    const cred=firebase.auth.EmailAuthProvider.credential(cuenta.email, act);
+    await cuenta.reauthenticateWithCredential(cred);
+    await cuenta.updatePassword(n1);
+    ["inClaveAct","inClaveNueva","inClaveNueva2"].forEach(id=>$(id).value="");
+    $("cambioClave").open=false; toast("Clave cambiada. Úsela la próxima vez que ingrese.");
+  }catch(e){
+    const c=e.code||"";
+    mal(/wrong-password|invalid-credential|invalid-login/i.test(c) ? "La clave actual no es correcta."
+       : /weak-password/i.test(c) ? "La clave nueva es muy débil. Use al menos 6 caracteres."
+       : /too-many/i.test(c) ? "Demasiados intentos. Espere unos minutos."
+       : "No se pudo cambiar la clave ("+c+").");
+  }
+  $("btnCambiarClave").disabled=false;
+});
 $("btnSalir").addEventListener("click",async()=>{ if(await confirmar("Cerrar sesión","Para volver a registrar tendrá que ingresar su usuario y clave.")){ $("ovAjustes").hidden=true; auth.signOut(); } });
 
 /* ---------- uso sin internet ---------- */
