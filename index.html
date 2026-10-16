@@ -832,7 +832,14 @@ async function ingresar(){
   if(!em||!cl){ $("loginErr").hidden=false; $("loginErr").textContent="Escriba usuario y clave."; return; }
   $("btnLogin").disabled=true; $("loginErr").hidden=true;
   try{ await auth.signInWithEmailAndPassword(em,cl); $("inClave").value=""; }
-  catch(e){ $("loginErr").hidden=false; $("loginErr").textContent = /network/i.test(e.code||"") ? "Sin conexión a internet. Intente de nuevo." : "Usuario o clave incorrectos."; }
+  catch(e){
+    const c=e.code||"";
+    $("loginErr").hidden=false;
+    $("loginErr").textContent = /network/i.test(c) ? "Sin conexión a internet. Intente de nuevo."
+      : /api-key|invalid-api|app-not-authorized|unauthorized-domain|operation-not-supported/i.test(c) ? "La app no está bien conectada a la base ("+c+"). Avise a la responsable del inventario."
+      : /too-many/i.test(c) ? "Demasiados intentos. Espere unos minutos."
+      : "Usuario o clave incorrectos.";
+  }
   $("btnLogin").disabled=false;
 }
 $("btnLogin").addEventListener("click",ingresar);
